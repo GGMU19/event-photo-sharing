@@ -5,9 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class EventPhotoSharingApplication {
-
 	public static void main(String[] args) {
 		SpringApplication.run(EventPhotoSharingApplication.class, args);
 	}
-
 }
