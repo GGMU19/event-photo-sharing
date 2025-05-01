@@ -39,4 +39,14 @@ public class User {
     public void setRole(String role) { this.role = role; }
     public Set<Event> getEvents() { return events; }
     public void setEvents(Set<Event> events) { this.events = events; }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
+                ", role='" + role + '\'' +
+                '}';
+    }
 }
