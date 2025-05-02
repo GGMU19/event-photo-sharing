@@ -1,10 +1,14 @@
 version: '3.8'
 services:
-  db:
+  postgres:
     image: postgres:latest
     environment:
       POSTGRES_DB: eventdb
       POSTGRES_USER: photoApp
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: photoPass
     ports:
       - "5432:5432"
+    networks:
+      - default
+networks:
+  default:
