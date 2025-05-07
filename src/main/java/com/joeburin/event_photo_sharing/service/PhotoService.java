@@ -8,6 +8,9 @@ import com.joeburin.event_photo_sharing.repository.PhotoRepository;
 import com.joeburin.event_photo_sharing.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -42,24 +45,19 @@ public class PhotoService {
 
     @Transactional
     public Photo uploadPhoto(Long eventId, MultipartFile file) {
-        // Get authenticated user
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
 
-        // Validate user
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Validate event
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
 
-        // Generate unique S3 key
         String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
         String s3Key = "photos/" + fileName;
 
         try {
-            // Upload to S3
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
                     .key(s3Key)
@@ -67,7 +65,6 @@ public class PhotoService {
                     .build();
             s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            // Save photo metadata
             String s3Url = String.format("https://%s.s3.amazonaws.com/%s", bucketName, s3Key);
             Photo photo = new Photo(s3Url, event, user.getId(), LocalDateTime.now());
             return photoRepository.save(photo);
@@ -77,11 +74,11 @@ public class PhotoService {
     }
 
     @Transactional(readOnly = true)
-    public List<Photo> getPhotosByEventId(Long eventId) {
-        // Validate event
+    public Page<Photo> getPhotosByEventIdPaginated(Long eventId, int page, int size) {
         eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
-        return photoRepository.findByEventId(eventId);
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by("uploadedAt").descending());
+        return photoRepository.findByEventId(eventId, pageRequest);
     }
 
     @Transactional
@@ -89,7 +86,6 @@ public class PhotoService {
         Photo photo = photoRepository.findById(photoId)
                 .orElseThrow(() -> new RuntimeException("Photo not found"));
 
-        // OPTIONAL: Auth check – allow only the uploader or event organizer to delete
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
         User currentUser = userRepository.findByUsername(username)
@@ -102,7 +98,6 @@ public class PhotoService {
             throw new RuntimeException("You are not authorized to delete this photo.");
         }
 
-        // Delete photo from S3
         try {
             String s3Key = extractKeyFromS3Url(photo.getUrl());
             DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
@@ -114,12 +109,10 @@ public class PhotoService {
             throw new RuntimeException("Failed to delete photo from S3: " + e.getMessage());
         }
 
-        // Delete photo metadata from database
         photoRepository.delete(photo);
     }
 
-    // Helper method to extract the S3 key from the photo URL
     private String extractKeyFromS3Url(String s3Url) {
-        return s3Url.substring(s3Url.indexOf(".com/") + 5); // extracts the path after .com/
+        return s3Url.substring(s3Url.indexOf(".com/") + 5);
     }
 }
