@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.time.LocalDateTime;
@@ -81,5 +82,44 @@ public class PhotoService {
         eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
         return photoRepository.findByEventId(eventId);
+    }
+
+    @Transactional
+    public void deletePhoto(Long photoId) {
+        Photo photo = photoRepository.findById(photoId)
+                .orElseThrow(() -> new RuntimeException("Photo not found"));
+
+        // OPTIONAL: Auth check – allow only the uploader or event organizer to delete
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        User currentUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean isUploader = photo.getUploaderId().equals(currentUser.getId());
+        boolean isOrganizer = photo.getEvent().getOrganizer(userRepository).getId().equals(currentUser.getId());
+
+        if (!isUploader && !isOrganizer) {
+            throw new RuntimeException("You are not authorized to delete this photo.");
+        }
+
+        // Delete photo from S3
+        try {
+            String s3Key = extractKeyFromS3Url(photo.getUrl());
+            DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(s3Key)
+                    .build();
+            s3Client.deleteObject(deleteObjectRequest);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to delete photo from S3: " + e.getMessage());
+        }
+
+        // Delete photo metadata from database
+        photoRepository.delete(photo);
+    }
+
+    // Helper method to extract the S3 key from the photo URL
+    private String extractKeyFromS3Url(String s3Url) {
+        return s3Url.substring(s3Url.indexOf(".com/") + 5); // extracts the path after .com/
     }
 }

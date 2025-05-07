@@ -49,4 +49,9 @@ public class Photo {
 
     public LocalDateTime getUploadedAt() { return uploadedAt; }
     public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }
+
+    // Add getUrl() method to get the S3 URL
+    public String getUrl() {
+        return this.s3Url;
+    }
 }

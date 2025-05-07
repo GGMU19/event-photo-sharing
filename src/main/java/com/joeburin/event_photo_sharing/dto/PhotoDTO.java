@@ -26,7 +26,7 @@ public class PhotoDTO {
                 photo.getId(),
                 photo.getS3Url(),
                 photo.getEvent().getId(), // Extract eventId from Event
-                photo.getUploaderId(),
+                photo.getUploaderId(), // Using uploaderId as Long
                 photo.getUploadedAt()
         );
     }

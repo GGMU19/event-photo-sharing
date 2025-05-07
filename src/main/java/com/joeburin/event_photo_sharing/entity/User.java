@@ -1,6 +1,5 @@
 package com.joeburin.event_photo_sharing.entity;
 
-
 import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;

@@ -1,6 +1,6 @@
 package com.joeburin.event_photo_sharing.entity;
 
-
+import com.joeburin.event_photo_sharing.repository.UserRepository;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -98,5 +98,12 @@ public class Event {
 
     public void setPhotos(Set<Photo> photos) {
         this.photos = photos;
+    }
+
+    // Add getOrganizer() method to get the organizer User object
+    @Transient
+    public User getOrganizer(UserRepository userRepository) {
+        return userRepository.findById(organizerId)
+                .orElseThrow(() -> new RuntimeException("Organizer not found"));
     }
 }
