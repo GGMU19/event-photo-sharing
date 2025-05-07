@@ -2,6 +2,7 @@ package com.joeburin.event_photo_sharing.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -32,15 +33,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> {
-                    cors.configurationSource(corsConfigurationSource());
-                })
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/events/**").hasRole("ORGANIZER")
-                        .requestMatchers("/api/photos/**").hasAnyRole("ORGANIZER", "ATTENDEE")
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").authenticated() // Allow GET for authenticated users
+                        .requestMatchers(HttpMethod.POST, "/api/events/**").hasAuthority("ROLE_ORGANIZER")
+                        .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAuthority("ROLE_ORGANIZER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAuthority("ROLE_ORGANIZER")
+                        .requestMatchers("/api/photos/**").hasAnyAuthority("ROLE_ORGANIZER", "ROLE_ATTENDEE")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

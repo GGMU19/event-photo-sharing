@@ -3,6 +3,7 @@ package com.joeburin.event_photo_sharing.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import javax.crypto.SecretKey;
+import java.util.Base64;
 import java.util.Date;
 
 import org.springframework.stereotype.Component;
@@ -10,26 +11,26 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY_ENV = System.getenv("JWT_SECRET_KEY");
+    private static final String SECRET_KEY_ENV = System.getenv("JWT_SECRET");
     private static final long JWT_EXPIRATION_MS = 3600000;  // 1 hour
 
     private static final SecretKey secretKey = getSecretKey();
 
     private static SecretKey getSecretKey() {
         if (SECRET_KEY_ENV != null && !SECRET_KEY_ENV.isEmpty()) {
-            return Keys.hmacShaKeyFor(SECRET_KEY_ENV.getBytes());
+            return Keys.hmacShaKeyFor(Base64.getDecoder().decode(SECRET_KEY_ENV)); // Decode Base64
         } else {
-            return Keys.secretKeyFor(SignatureAlgorithm.HS512);
+            return Keys.secretKeyFor(SignatureAlgorithm.HS256); // Use HS256
         }
     }
 
     public static String generateToken(String username, String role) {
         return Jwts.builder()
                 .setSubject(username)
-                .claim("role", role)
+                .claim("role", role) // Role without ROLE_ prefix
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + JWT_EXPIRATION_MS))
-                .signWith(secretKey)
+                .signWith(secretKey, SignatureAlgorithm.HS256) // Use HS256
                 .compact();
     }
 

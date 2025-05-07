@@ -41,19 +41,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
-            username = jwtUtil.getUsernameFromToken(token);  // Calling the method from JwtUtil
+            try {
+                username = jwtUtil.getUsernameFromToken(token);
+            } catch (Exception e) {
+                System.out.println("Failed to extract username from token: " + e.getMessage());
+            }
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            if (jwtUtil.validateToken(token)) {  // Calling the method from JwtUtil
-                String role = jwtUtil.getRoleFromToken(token);  // Calling the method from JwtUtil
+            if (jwtUtil.validateToken(token)) {
+                String role = jwtUtil.getRoleFromToken(token); // Role includes ROLE_
+                System.out.println("JWT Filter -> Username: " + username);
+                System.out.println("JWT Filter -> Role from token: " + role);
+
+                // Check if the role already includes the "ROLE_" prefix
+                if (!role.startsWith("ROLE_")) {
+                    role = "ROLE_" + role; // Add the "ROLE_" prefix only if not already present
+                }
+
+                SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role); // Now role is correctly formatted
+                System.out.println("JWT Filter -> Granted Authorities: " + authority);
+
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         username,
                         null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                        Collections.singletonList(authority)
                 );
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                System.out.println("JWT Filter -> Token is invalid or expired.");
             }
         }
 
