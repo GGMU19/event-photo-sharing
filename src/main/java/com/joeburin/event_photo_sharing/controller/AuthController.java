@@ -1,6 +1,7 @@
 package com.joeburin.event_photo_sharing.controller;
 
 import com.joeburin.event_photo_sharing.dto.AuthRequest;
+import com.joeburin.event_photo_sharing.entity.User;
 import com.joeburin.event_photo_sharing.security.JwtUtil;
 import com.joeburin.event_photo_sharing.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,7 +33,7 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
         );
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String role = userDetails.getAuthorities().iterator().next().getAuthority().substring(5); // Remove "ROLE_"
+        String role = userDetails.getAuthorities().iterator().next().getAuthority();
         String jwt = jwtUtil.generateToken(userDetails.getUsername(), role);
         return ResponseEntity.ok(jwt);
     }
@@ -47,5 +50,22 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Registration failed: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/test-password")
+    public ResponseEntity<String> testPassword(@RequestParam String password) {
+        PasswordEncoder encoder = new BCryptPasswordEncoder();
+        User user = userService.findByUsername("organizer")
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        String hash = user.getPassword();
+        boolean matches = encoder.matches(password, hash);
+        return ResponseEntity.ok("Password: " + password + "\nHash: " + hash + "\nMatches: " + matches);
+    }
+
+    @GetMapping("/generate-hash")
+    public ResponseEntity<String> generateHash(@RequestParam String password) {
+        PasswordEncoder encoder = new BCryptPasswordEncoder();
+        String hash = encoder.encode(password);
+        return ResponseEntity.ok("Password: " + password + "\nHash: " + hash);
     }
 }

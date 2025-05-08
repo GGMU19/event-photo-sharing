@@ -1,5 +1,6 @@
 package com.joeburin.event_photo_sharing.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -36,9 +37,14 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/events/**").authenticated() // Allow GET for authenticated users
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/events/**").hasAuthority("ROLE_ORGANIZER")
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAuthority("ROLE_ORGANIZER")
                         .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAuthority("ROLE_ORGANIZER")

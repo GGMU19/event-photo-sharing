@@ -26,9 +26,6 @@ public class Event {
     @Column(name = "organizer_id", nullable = false)
     private Long organizerId;
 
-    @ManyToMany(mappedBy = "events")
-    private Set<User> users = new HashSet<>();
-
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Photo> photos = new HashSet<>();
 
@@ -82,14 +79,6 @@ public class Event {
 
     public void setOrganizerId(Long organizerId) {
         this.organizerId = organizerId;
-    }
-
-    public Set<User> getUsers() {
-        return users;
-    }
-
-    public void setUsers(Set<User> users) {
-        this.users = users;
     }
 
     public Set<Photo> getPhotos() {

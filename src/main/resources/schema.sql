@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS photos (
 CREATE TABLE IF NOT EXISTS event_users (
     event_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
+    role VARCHAR(20) NOT NULL, -- 'attendee' or 'organizer'
     PRIMARY KEY (event_id, user_id),
     FOREIGN KEY (event_id) REFERENCES events(id),
     FOREIGN KEY (user_id) REFERENCES users(id)

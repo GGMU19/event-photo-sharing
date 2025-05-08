@@ -6,11 +6,13 @@ import com.joeburin.event_photo_sharing.entity.User;
 import com.joeburin.event_photo_sharing.repository.EventRepository;
 import com.joeburin.event_photo_sharing.repository.PhotoRepository;
 import com.joeburin.event_photo_sharing.repository.UserRepository;
+import com.joeburin.event_photo_sharing.repository.EventUserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -22,7 +24,6 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -36,6 +37,9 @@ public class PhotoService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private EventUserRepository eventUserRepository;
 
     @Autowired
     private S3Client s3Client;
@@ -53,6 +57,11 @@ public class PhotoService {
 
         Event event = eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        boolean isAttendee = eventUserRepository.existsByEventIdAndUserIdAndRole(eventId, user.getId(), "attendee");
+        if (!isAttendee) {
+            throw new AccessDeniedException("You are not an attendee of this event");
+        }
 
         String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
         String s3Key = "photos/" + fileName;
@@ -75,8 +84,20 @@ public class PhotoService {
 
     @Transactional(readOnly = true)
     public Page<Photo> getPhotosByEventIdPaginated(Long eventId, int page, int size) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         eventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        boolean isAttendee = eventUserRepository.existsByEventIdAndUserIdAndRole(eventId, user.getId(), "attendee");
+        if (!isAttendee) {
+            throw new AccessDeniedException("You are not an attendee of this event");
+        }
+
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("uploadedAt").descending());
         return photoRepository.findByEventId(eventId, pageRequest);
     }
@@ -95,7 +116,7 @@ public class PhotoService {
         boolean isOrganizer = photo.getEvent().getOrganizer(userRepository).getId().equals(currentUser.getId());
 
         if (!isUploader && !isOrganizer) {
-            throw new RuntimeException("You are not authorized to delete this photo.");
+            throw new AccessDeniedException("You are not authorized to delete this photo.");
         }
 
         try {
